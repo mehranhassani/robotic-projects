@@ -13,12 +13,19 @@ if [[ ! -x "${VENV_SERVER}" ]]; then
   exit 1
 fi
 
+# Optional: add user to hardware groups (needs sudo, may require re-login)
+for group in gpio i2c video render; do
+  if getent group "${group}" >/dev/null 2>&1; then
+    if ! groups "${USER}" | grep -qw "${group}"; then
+      echo "Adding ${USER} to group ${group} (sudo required)..."
+      sudo usermod -aG "${group}" "${USER}" || true
+    fi
+  fi
+done
+
 mkdir -p "${HOME}/.config/systemd/user"
 
-sed \
-  -e "s|%i|${USER}|g" \
-  -e "s|%h|${HOME}|g" \
-  "${UNIT_SRC}" > "${UNIT_DEST}"
+sed -e "s|%h|${HOME}|g" "${UNIT_SRC}" > "${UNIT_DEST}"
 
 systemctl --user daemon-reload
 systemctl --user enable "${SERVICE_NAME}.service"
@@ -35,5 +42,11 @@ echo "  Status:  systemctl --user status ${SERVICE_NAME}"
 echo "  Logs:    journalctl --user -u ${SERVICE_NAME} -f"
 echo "  Stop:    systemctl --user stop ${SERVICE_NAME}"
 echo "  Disable: systemctl --user disable ${SERVICE_NAME}"
+echo ""
+if groups "${USER}" | grep -qw gpio; then
+  :
+else
+  echo "Note: if GPIO/camera fail, log out and back in after group changes, then restart the service."
+fi
 echo ""
 systemctl --user --no-pager status "${SERVICE_NAME}.service" || true

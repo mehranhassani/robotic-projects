@@ -5,16 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=%i
-Group=%i
 WorkingDirectory=%h/robotic-projects
 Environment=HOME=%h
 Environment=PATH=%h/robotic-projects/.venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=%h/robotic-projects/.venv/bin/fnk0043-server
 Restart=on-failure
 RestartSec=5
-# GPIO, I2C, camera
-SupplementaryGroups=gpio i2c video render
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
