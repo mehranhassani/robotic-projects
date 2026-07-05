@@ -57,10 +57,6 @@ async def _run_robot(fn, *args, **kwargs):
     return await asyncio.to_thread(fn, robot, *args, **kwargs)
 
 
-def _call(robot: FNK0043, method: str, *args, **kwargs):
-    return getattr(robot, method)(*args, **kwargs)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _autonomy_task
