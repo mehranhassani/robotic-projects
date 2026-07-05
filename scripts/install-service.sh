@@ -29,7 +29,11 @@ sed -e "s|%h|${HOME}|g" "${UNIT_SRC}" > "${UNIT_DEST}"
 
 systemctl --user daemon-reload
 systemctl --user enable "${SERVICE_NAME}.service"
-systemctl --user restart "${SERVICE_NAME}.service"
+
+# Stop any stuck instance before restart (camera can block shutdown)
+systemctl --user stop "${SERVICE_NAME}.service" 2>/dev/null || true
+sleep 1
+systemctl --user start "${SERVICE_NAME}.service"
 
 # Allow user services to start at boot (without an active login session)
 if command -v loginctl >/dev/null 2>&1; then

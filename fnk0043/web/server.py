@@ -18,6 +18,7 @@ from fnk0043.robot import FNK0043
 
 STATIC_DIR = Path(__file__).parent / "static"
 _robot: FNK0043 | None = None
+_robot_lock = asyncio.Lock()
 _autonomy_task: asyncio.Task | None = None
 
 
@@ -41,10 +42,28 @@ class BuzzerCommand(BaseModel):
     on: bool
 
 
+async def _get_robot() -> FNK0043:
+    global _robot
+    if _robot is not None:
+        return _robot
+    async with _robot_lock:
+        if _robot is None:
+            _robot = await asyncio.to_thread(FNK0043)
+    return _robot
+
+
+async def _run_robot(fn, *args, **kwargs):
+    robot = await _get_robot()
+    return await asyncio.to_thread(fn, robot, *args, **kwargs)
+
+
+def _call(robot: FNK0043, method: str, *args, **kwargs):
+    return getattr(robot, method)(*args, **kwargs)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _robot, _autonomy_task
-    _robot = FNK0043()
+    global _autonomy_task
     _autonomy_task = asyncio.create_task(_autonomy_loop())
     yield
     if _autonomy_task:
@@ -53,8 +72,10 @@ async def lifespan(app: FastAPI):
             await _autonomy_task
         except asyncio.CancelledError:
             pass
-    if _robot:
-        _robot.close()
+    global _robot
+    if _robot is not None:
+        await asyncio.to_thread(_robot.close)
+        _robot = None
 
 
 app = FastAPI(
@@ -69,14 +90,8 @@ app.mount("/assets", StaticFiles(directory=STATIC_DIR), name="assets")
 async def _autonomy_loop() -> None:
     while True:
         if _robot and _robot.autonomous.mode != DriveMode.MANUAL:
-            _robot.update()
+            await asyncio.to_thread(_robot.update)
         await asyncio.sleep(0.05)
-
-
-def _require_robot() -> FNK0043:
-    if _robot is None:
-        raise RuntimeError("Robot not initialized")
-    return _robot
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -86,12 +101,14 @@ async def index() -> HTMLResponse:
 
 @app.get("/api/status")
 async def status():
-    return _require_robot().status()
+    robot = await _get_robot()
+    return await asyncio.to_thread(robot.status)
 
 
 @app.get("/api/sensors")
 async def sensors():
-    snap = _require_robot().sensors()
+    robot = await _get_robot()
+    snap = await asyncio.to_thread(robot.sensors)
     return {
         "distance_cm": snap.distance_cm,
         "light_left_v": snap.light_left_v,
@@ -104,63 +121,70 @@ async def sensors():
 
 @app.post("/api/drive")
 async def drive(cmd: DriveCommand):
-    robot = _require_robot()
-    robot.set_drive_mode(DriveMode.MANUAL)
-    if cmd.raw and len(cmd.raw) == 4:
-        robot.drive.drive_raw(*cmd.raw)
-    elif cmd.joystick:
-        robot.drive.drive_joystick(
-            cmd.joystick.get("angle", 0),
-            cmd.joystick.get("magnitude", 0),
-        )
-    elif cmd.direction:
-        robot.drive.move(Direction(cmd.direction), cmd.speed)
+    def _drive(robot: FNK0043) -> None:
+        robot.set_drive_mode(DriveMode.MANUAL)
+        if cmd.raw and len(cmd.raw) == 4:
+            robot.drive.drive_raw(*cmd.raw)
+        elif cmd.joystick:
+            robot.drive.drive_joystick(
+                cmd.joystick.get("angle", 0),
+                cmd.joystick.get("magnitude", 0),
+            )
+        elif cmd.direction:
+            robot.drive.move(Direction(cmd.direction), cmd.speed)
+
+    await _run_robot(_drive)
     return {"ok": True}
 
 
 @app.post("/api/stop")
 async def stop():
-    robot = _require_robot()
-    robot.set_drive_mode(DriveMode.MANUAL)
-    robot.drive.stop()
+    def _stop(robot: FNK0043) -> None:
+        robot.set_drive_mode(DriveMode.MANUAL)
+        robot.drive.stop()
+
+    await _run_robot(_stop)
     return {"ok": True}
 
 
 @app.post("/api/mode")
 async def set_mode(cmd: ModeCommand):
-    robot = _require_robot()
-    robot.set_drive_mode(DriveMode(cmd.mode))
+    await _run_robot(lambda r: r.set_drive_mode(DriveMode(cmd.mode)))
     return {"ok": True, "mode": cmd.mode}
 
 
 @app.post("/api/servo")
 async def set_servo(cmd: ServoCommand):
-    robot = _require_robot()
-    robot.set_drive_mode(DriveMode.MANUAL)
-    if cmd.channel == "0":
-        robot.pan_servo.set_angle(cmd.angle)
-    elif cmd.channel == "1":
-        robot.tilt_servo.set_angle(cmd.angle)
-    else:
-        robot.servos.set_angle(cmd.channel, cmd.angle)
+    def _servo(robot: FNK0043) -> None:
+        robot.set_drive_mode(DriveMode.MANUAL)
+        if cmd.channel == "0":
+            robot.pan_servo.set_angle(cmd.angle)
+        elif cmd.channel == "1":
+            robot.tilt_servo.set_angle(cmd.angle)
+        else:
+            robot.servos.set_angle(cmd.channel, cmd.angle)
+
+    await _run_robot(_servo)
     return {"ok": True, "angle": cmd.angle, "channel": cmd.channel}
 
 
 @app.post("/api/buzzer")
 async def buzzer(cmd: BuzzerCommand):
-    b = _require_robot().buzzer
-    b.on() if cmd.on else b.off()
+    def _buzzer(robot: FNK0043) -> None:
+        robot.buzzer.on() if cmd.on else robot.buzzer.off()
+
+    await _run_robot(_buzzer)
     return {"ok": True}
 
 
 @app.get("/stream")
 async def video_stream():
-    robot = _require_robot()
-    robot.camera.start()
+    robot = await _get_robot()
+    await asyncio.to_thread(robot.camera.start)
 
     async def generate():
         while True:
-            frame = robot.camera.get_frame(timeout=1.0)
+            frame = await asyncio.to_thread(robot.camera.get_frame, 1.0)
             if frame:
                 yield (
                     b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
@@ -173,59 +197,63 @@ async def video_stream():
     )
 
 
+def _handle_ws_action(robot: FNK0043, msg: dict) -> None:
+    action = msg.get("action")
+
+    if action == "drive":
+        robot.set_drive_mode(DriveMode.MANUAL)
+        if "raw" in msg:
+            duties = msg["raw"]
+            robot.drive.drive_raw(*duties)
+        elif "direction" in msg:
+            robot.drive.move(Direction(msg["direction"]), msg.get("speed", 0.6))
+        elif "joystick" in msg:
+            j = msg["joystick"]
+            robot.drive.drive_joystick(j.get("angle", 0), j.get("magnitude", 0))
+
+    elif action == "stop":
+        robot.set_drive_mode(DriveMode.MANUAL)
+        robot.drive.stop()
+
+    elif action == "mode":
+        robot.set_drive_mode(DriveMode(msg["mode"]))
+
+    elif action == "servo":
+        robot.set_drive_mode(DriveMode.MANUAL)
+        channel = msg.get("channel", "0")
+        angle = int(msg.get("angle", 90))
+        if channel == "0":
+            robot.pan_servo.set_angle(angle)
+        elif channel == "1":
+            robot.tilt_servo.set_angle(angle)
+        else:
+            robot.servos.set_angle(channel, angle)
+
+    elif action == "buzzer":
+        robot.buzzer.on() if msg.get("on") else robot.buzzer.off()
+
+
 @app.websocket("/ws")
 async def websocket_control(websocket: WebSocket):
     await websocket.accept()
-    robot = _require_robot()
     try:
         while True:
             raw = await websocket.receive_text()
             msg = json.loads(raw)
             action = msg.get("action")
 
-            if action == "drive":
-                robot.set_drive_mode(DriveMode.MANUAL)
-                if "raw" in msg:
-                    duties = msg["raw"]
-                    robot.drive.drive_raw(*duties)
-                elif "direction" in msg:
-                    robot.drive.move(
-                        Direction(msg["direction"]),
-                        msg.get("speed", 0.6),
-                    )
-                elif "joystick" in msg:
-                    j = msg["joystick"]
-                    robot.drive.drive_joystick(j.get("angle", 0), j.get("magnitude", 0))
-
-            elif action == "stop":
-                robot.set_drive_mode(DriveMode.MANUAL)
-                robot.drive.stop()
-
-            elif action == "mode":
-                robot.set_drive_mode(DriveMode(msg["mode"]))
-
-            elif action == "servo":
-                robot.set_drive_mode(DriveMode.MANUAL)
-                channel = msg.get("channel", "0")
-                angle = int(msg.get("angle", 90))
-                if channel == "0":
-                    robot.pan_servo.set_angle(angle)
-                elif channel == "1":
-                    robot.tilt_servo.set_angle(angle)
-                else:
-                    robot.servos.set_angle(channel, angle)
-
-            elif action == "buzzer":
-                robot.buzzer.on() if msg.get("on") else robot.buzzer.off()
-
-            elif action == "status":
-                await websocket.send_json(robot.status())
+            if action == "status":
+                robot = await _get_robot()
+                await websocket.send_json(await asyncio.to_thread(robot.status))
                 continue
 
-            await websocket.send_json({"ok": True, **robot.status()})
+            await _run_robot(_handle_ws_action, msg)
+            robot = await _get_robot()
+            await websocket.send_json({"ok": True, **await asyncio.to_thread(robot.status)})
 
     except WebSocketDisconnect:
-        robot.drive.stop()
+        if _robot is not None:
+            await asyncio.to_thread(_robot.drive.stop)
 
 
 def main() -> None:

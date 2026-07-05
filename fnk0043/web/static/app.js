@@ -170,5 +170,5 @@
     if (ws && ws.readyState === WebSocket.OPEN) {
       send({ action: "status" });
     }
-  }, 1000);
+  }, 2000);
 })();

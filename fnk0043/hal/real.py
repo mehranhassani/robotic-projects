@@ -70,18 +70,23 @@ class RealADC:
         self._bus = _open_smbus(1)
         self._address = config.adc_address
 
-    def _read_stable_byte(self) -> int:
-        while True:
+    def _read_stable_byte(self, max_attempts: int = 50) -> int:
+        """Read ADC byte; bail out after max_attempts to avoid infinite hang."""
+        for _ in range(max_attempts):
             v1 = self._bus.read_byte(self._address)
             v2 = self._bus.read_byte(self._address)
             if v1 == v2:
                 return v1
+        raise TimeoutError("ADC did not return a stable reading")
 
     def read_voltage(self, channel: int) -> float:
-        command = self.__COMMAND | ((((channel << 2) | (channel >> 1)) & 0x07) << 4)
-        self._bus.write_byte(self._address, command)
-        value = self._read_stable_byte()
-        return round(value / 255.0 * self._scale, 2)
+        try:
+            command = self.__COMMAND | ((((channel << 2) | (channel >> 1)) & 0x07) << 4)
+            self._bus.write_byte(self._address, command)
+            value = self._read_stable_byte()
+            return round(value / 255.0 * self._scale, 2)
+        except (TimeoutError, OSError):
+            return 0.0
 
     def close(self) -> None:
         self._bus.close()

@@ -50,15 +50,24 @@ class FNK0043:
         self.camera = CameraStream()
         self.autonomous = AutonomousController(self)
         self._closed = False
+        self._sensor_cache: dict[str, object] = {}
+        self._sensor_cache_at = 0.0
 
-    @property
-    def mock(self) -> bool:
-        return self._hal.mock
+    def _sensor_cache_ttl(self) -> float:
+        return 0.4
 
-    def sensors(self) -> SensorSnapshot:
-        line = self.line.read()
+    def _read_sensors_cached(self) -> SensorSnapshot:
+        import time
+
+        now = time.time()
+        if now - self._sensor_cache_at < self._sensor_cache_ttl():
+            cached = self._sensor_cache.get("snap")
+            if cached is not None:
+                return cached  # type: ignore[return-value]
+
         light = self.light.read()
-        return SensorSnapshot(
+        line = self.line.read()
+        snap = SensorSnapshot(
             distance_cm=self.ultrasonic.distance_cm(),
             light_left_v=light.left_v,
             light_right_v=light.right_v,
@@ -68,6 +77,16 @@ class FNK0043:
             battery_v=self.battery.voltage,
             mock=self.mock,
         )
+        self._sensor_cache["snap"] = snap
+        self._sensor_cache_at = now
+        return snap
+
+    @property
+    def mock(self) -> bool:
+        return self._hal.mock
+
+    def sensors(self) -> SensorSnapshot:
+        return self._read_sensors_cached()
 
     def set_drive_mode(self, mode: DriveMode) -> None:
         self.autonomous.set_mode(mode)
