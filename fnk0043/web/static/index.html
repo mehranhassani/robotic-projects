@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>FNK0043 Control</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header>
+    <h1>FNK0043 Smart Car</h1>
+    <div id="status-bar">
+      <span id="conn-status" class="badge offline">Connecting…</span>
+      <span id="battery" class="badge">— V</span>
+      <span id="mock-badge" class="badge hidden">Mock</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel video-panel">
+      <img id="camera" src="/stream" alt="Camera feed" />
+      <div class="sensor-grid">
+        <div class="sensor"><label>Distance</label><span id="distance">—</span></div>
+        <div class="sensor"><label>Light L/R</label><span id="light">— / —</span></div>
+        <div class="sensor"><label>Line L/C/R</label><span id="line">—</span></div>
+      </div>
+    </section>
+
+    <section class="panel controls-panel">
+      <h2>Drive</h2>
+      <div class="dpad">
+        <button data-dir="forward" class="dpad-btn">▲</button>
+        <button data-dir="left" class="dpad-btn">◀</button>
+        <button data-dir="stop" class="dpad-btn stop">■</button>
+        <button data-dir="right" class="dpad-btn">▶</button>
+        <button data-dir="backward" class="dpad-btn">▼</button>
+      </div>
+
+      <label class="speed-label">
+        Speed
+        <input type="range" id="speed" min="0.2" max="1" step="0.05" value="0.6" />
+      </label>
+
+      <h2>Autonomous</h2>
+      <div class="mode-buttons">
+        <button data-mode="manual" class="mode active">Manual</button>
+        <button data-mode="light_follow">Light</button>
+        <button data-mode="line_follow">Line</button>
+        <button data-mode="obstacle_avoid">Ultrasonic</button>
+      </div>
+
+      <h2>Extras</h2>
+      <div class="extras">
+        <label>Servo pan <input type="range" id="servo" min="30" max="150" value="90" /></label>
+        <button id="buzzer" class="toggle">Buzzer</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>
