@@ -43,6 +43,15 @@ fnk0043-server
 
 Browse to `http://<pi-ip>:8080` from your phone or laptop.
 
+### Autostart on boot
+
+```bash
+chmod +x scripts/install-service.sh
+./scripts/install-service.sh
+```
+
+See [docs/setup.md](docs/setup.md) for service management commands.
+
 ## Project layout
 
 ```

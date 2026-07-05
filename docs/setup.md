@@ -71,27 +71,45 @@ fnk0043-server
 
 Default port: **8080**. The server binds to `0.0.0.0` so any device on your LAN can connect.
 
-## systemd service (optional)
+## Start on boot (systemd)
 
-Create `/etc/systemd/system/fnk0043.service`:
-
-```ini
-[Unit]
-Description=FNK0043 Web Controller
-After=network.target
-
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/robotic-projects
-ExecStart=/home/pi/robotic-projects/.venv/bin/fnk0043-server
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-```
+After the venv is set up and `fnk0043-server` works manually:
 
 ```bash
+cd ~/robotic-projects
+git pull
+chmod +x scripts/install-service.sh scripts/uninstall-service.sh
+./scripts/install-service.sh
+```
+
+This installs a **user** systemd service that:
+- Starts `fnk0043-server` when the Pi boots
+- Restarts on failure
+- Runs as your login user (needed for GPIO/camera access)
+
+Useful commands:
+
+```bash
+systemctl --user status fnk0043          # is it running?
+journalctl --user -u fnk0043 -f          # live logs
+systemctl --user restart fnk0043         # restart after git pull
+./scripts/uninstall-service.sh           # remove autostart
+```
+
+If the service does not start at boot, enable linger (one-time):
+
+```bash
+sudo loginctl enable-linger $USER
+```
+
+### Manual systemd install (alternative)
+
+If you prefer a system-wide service, edit paths and user in `deploy/fnk0043.service`, then:
+
+```bash
+sudo cp deploy/fnk0043.service /etc/systemd/system/fnk0043.service
+# edit User=, WorkingDirectory=, ExecStart= paths for your account
+sudo systemctl daemon-reload
 sudo systemctl enable --now fnk0043
 ```
 
