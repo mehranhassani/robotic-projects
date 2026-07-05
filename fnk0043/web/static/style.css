@@ -127,6 +127,14 @@ main {
 
 .pan-slider input { flex: 1; }
 
+.camera-axis-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+}
+
 .sensor-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -164,7 +172,8 @@ main {
   border-radius: 12px;
   background: #2d3748;
   color: var(--text);
-  font-size: 1.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;

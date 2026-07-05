@@ -2,5 +2,6 @@
     "Connect_Version": 2,
     "Pcb_Version": 1,
     "Pi_Version": 1,
-    "Invert_Drive": true
+    "Swap_Forward_Back": true,
+    "Invert_Drive": false
 }

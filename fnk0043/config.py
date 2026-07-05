@@ -41,6 +41,7 @@ class HardwareConfig:
     max_duty: int = 4095
     default_speed: float = 0.6
     invert_drive: bool = False
+    swap_forward_back: bool = True
 
     @property
     def adc_voltage_scale(self) -> float:
@@ -65,16 +66,29 @@ def use_mock_hardware() -> bool:
     return os.environ.get("FNK0043_MOCK", "").lower() in ("1", "true", "yes") or not is_raspberry_pi()
 
 
-def load_params(path: Path | str = "params.json") -> dict[str, Any]:
-    path = Path(path)
+def default_params_path() -> Path:
+    env_path = os.environ.get("FNK0043_PARAMS")
+    if env_path:
+        return Path(env_path)
+    return Path.cwd() / "params.json"
+
+
+def load_params(path: Path | str | None = None) -> dict[str, Any]:
+    path = Path(path) if path else default_params_path()
     if not path.exists():
         return {}
     with path.open() as f:
         return json.load(f)
 
 
+def _param_bool(params: dict[str, Any], key: str, default: bool) -> bool:
+    if key not in params:
+        return default
+    return bool(params[key])
+
+
 def hardware_from_params(
-    params_path: Path | str = "params.json",
+    params_path: Path | str | None = None,
     chassis: ChassisType | None = None,
 ) -> HardwareConfig:
     params = load_params(params_path)
@@ -84,10 +98,12 @@ def hardware_from_params(
         invert_drive = invert_env in ("1", "true", "yes")
     else:
         invert_drive = bool(invert_drive)
+    swap_forward_back = _param_bool(params, "Swap_Forward_Back", True)
     return HardwareConfig(
         connect_version=params.get("Connect_Version", 2),
         pcb_version=params.get("Pcb_Version", 1),
         pi_version=params.get("Pi_Version", 1),
         chassis=chassis or ChassisType(os.environ.get("FNK0043_CHASSIS", "standard")),
         invert_drive=invert_drive,
+        swap_forward_back=swap_forward_back,
     )

@@ -37,6 +37,30 @@ class ServoBank:
         pass
 
 
+class TiltServo:
+    """Camera tilt servo (channel 1)."""
+
+    MIN_ANGLE = 30
+    CENTER_ANGLE = 90
+    MAX_ANGLE = 150
+
+    def __init__(self, servos: ServoBank):
+        self._servos = servos
+        self._angle = self.CENTER_ANGLE
+        self.center()
+
+    @property
+    def angle(self) -> int:
+        return self._angle
+
+    def set_angle(self, angle: int) -> None:
+        self._angle = max(self.MIN_ANGLE, min(self.MAX_ANGLE, angle))
+        self._servos.set_angle("1", self._angle)
+
+    def center(self) -> None:
+        self.set_angle(self.CENTER_ANGLE)
+
+
 class PanServo:
     """Ultrasonic scanner pan servo (channel 0)."""
 

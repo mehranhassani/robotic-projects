@@ -7,7 +7,7 @@ from typing import Any
 
 from fnk0043.actuators.buzzer import Buzzer
 from fnk0043.actuators.leds import LedStrip
-from fnk0043.actuators.servo import PanServo, ServoBank
+from fnk0043.actuators.servo import PanServo, ServoBank, TiltServo
 from fnk0043.behaviors.autonomous import AutonomousController, DriveMode
 from fnk0043.camera.stream import CameraStream
 from fnk0043.config import HardwareConfig, hardware_from_params
@@ -45,6 +45,7 @@ class FNK0043:
         self.buzzer = Buzzer(self._hal.gpio, self.config)
         self.servos = ServoBank(self._hal.pca9685, self.config)
         self.pan_servo = PanServo(self.servos)
+        self.tilt_servo = TiltServo(self.servos)
         self.leds = LedStrip(self.config)
         self.camera = CameraStream()
         self.autonomous = AutonomousController(self)
@@ -86,6 +87,9 @@ class FNK0043:
             "light": {"left": snap.light_left_v, "right": snap.light_right_v},
             "line": {"left": snap.line_left, "center": snap.line_center, "right": snap.line_right},
             "pan_angle": self.pan_servo.angle,
+            "tilt_angle": self.tilt_servo.angle,
+            "swap_forward_back": self.config.swap_forward_back,
+            "invert_drive": self.config.invert_drive,
         }
 
     def close(self) -> None:

@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=%h/robotic-projects
 Environment=HOME=%h
+Environment=FNK0043_PARAMS=%h/robotic-projects/params.json
 Environment=PATH=%h/robotic-projects/.venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=%h/robotic-projects/.venv/bin/fnk0043-server
 Restart=on-failure

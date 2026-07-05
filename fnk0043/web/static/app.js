@@ -15,7 +15,8 @@
       $("conn-status").textContent = "Online";
       $("conn-status").className = "badge online";
       send({ action: "status" });
-      setPan(parseInt($("servo").value, 10), false);
+      setServo("0", parseInt($("servo-pan").value, 10), false);
+      setServo("1", parseInt($("servo-tilt").value, 10), false);
     };
 
     ws.onclose = () => {
@@ -37,13 +38,16 @@
     }
   }
 
-  async function setPan(angle, useRestFallback = true) {
+  async function setServo(channel, angle, useRestFallback = true) {
     angle = Math.max(30, Math.min(150, angle));
-    $("servo").value = String(angle);
-    $("pan-angle").textContent = `${angle}°`;
+    const isPan = channel === "0";
+    const slider = isPan ? $("servo-pan") : $("servo-tilt");
+    const label = isPan ? $("pan-angle") : $("tilt-angle");
+    slider.value = String(angle);
+    label.textContent = `${angle} deg`;
 
     send({ action: "mode", mode: "manual" });
-    send({ action: "servo", channel: "0", angle });
+    send({ action: "servo", channel, angle });
 
     if (useRestFallback) {
       clearTimeout(servoTimer);
@@ -52,7 +56,7 @@
           await fetch("/api/servo", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ channel: "0", angle }),
+            body: JSON.stringify({ channel, angle }),
           });
         } catch (_) {
           /* ws path is primary */
@@ -75,7 +79,10 @@
       $("line").textContent = `${l.left} / ${l.center} / ${l.right}`;
     }
     if (data.pan_angle != null) {
-      $("pan-angle").textContent = `${data.pan_angle}°`;
+      $("pan-angle").textContent = `${data.pan_angle} deg`;
+    }
+    if (data.tilt_angle != null) {
+      $("tilt-angle").textContent = `${data.tilt_angle} deg`;
     }
   }
 
@@ -127,13 +134,23 @@
 
   document.querySelectorAll(".pan-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      setPan(parseInt(btn.dataset.pan, 10));
+      setServo("0", parseInt(btn.dataset.pan, 10));
     });
   });
 
-  const onServoInput = (e) => setPan(parseInt(e.target.value, 10));
-  $("servo").addEventListener("input", onServoInput);
-  $("servo").addEventListener("change", onServoInput);
+  document.querySelectorAll(".tilt-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setServo("1", parseInt(btn.dataset.tilt, 10));
+    });
+  });
+
+  const onPanInput = (e) => setServo("0", parseInt(e.target.value, 10));
+  $("servo-pan").addEventListener("input", onPanInput);
+  $("servo-pan").addEventListener("change", onPanInput);
+
+  const onTiltInput = (e) => setServo("1", parseInt(e.target.value, 10));
+  $("servo-tilt").addEventListener("input", onTiltInput);
+  $("servo-tilt").addEventListener("change", onTiltInput);
 
   $("camera-reload").addEventListener("click", () => {
     const img = $("camera");

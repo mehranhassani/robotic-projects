@@ -70,9 +70,11 @@ class DriveSystem:
 
     def move(self, direction: Direction, speed: float = 0.6) -> None:
         duty = self._to_duty(speed)
+        forward = -duty if self._config.swap_forward_back else duty
+        backward = duty if self._config.swap_forward_back else -duty
         mapping = {
-            Direction.FORWARD: WheelDuties(duty, duty, duty, duty),
-            Direction.BACKWARD: WheelDuties(-duty, -duty, -duty, -duty),
+            Direction.FORWARD: WheelDuties(forward, forward, forward, forward),
+            Direction.BACKWARD: WheelDuties(backward, backward, backward, backward),
             Direction.LEFT: WheelDuties(-duty, -duty, duty, duty),
             Direction.RIGHT: WheelDuties(duty, duty, -duty, -duty),
             Direction.STOP: WheelDuties(0, 0, 0, 0),
