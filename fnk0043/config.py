@@ -42,6 +42,7 @@ class HardwareConfig:
     default_speed: float = 0.6
     invert_drive: bool = False
     swap_forward_back: bool = True
+    swap_left_right: bool = True
 
     @property
     def adc_voltage_scale(self) -> float:
@@ -99,6 +100,7 @@ def hardware_from_params(
     else:
         invert_drive = bool(invert_drive)
     swap_forward_back = _param_bool(params, "Swap_Forward_Back", True)
+    swap_left_right = _param_bool(params, "Swap_Left_Right", True)
     return HardwareConfig(
         connect_version=params.get("Connect_Version", 2),
         pcb_version=params.get("Pcb_Version", 1),
@@ -106,4 +108,5 @@ def hardware_from_params(
         chassis=chassis or ChassisType(os.environ.get("FNK0043_CHASSIS", "standard")),
         invert_drive=invert_drive,
         swap_forward_back=swap_forward_back,
+        swap_left_right=swap_left_right,
     )

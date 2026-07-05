@@ -107,11 +107,17 @@ class DriveSystem:
         duty = self._to_duty(speed)
         forward = -duty if self._config.swap_forward_back else duty
         backward = duty if self._config.swap_forward_back else -duty
+        if self._config.swap_left_right:
+            left = WheelDuties(duty, duty, -duty, -duty)
+            right = WheelDuties(-duty, -duty, duty, duty)
+        else:
+            left = WheelDuties(-duty, -duty, duty, duty)
+            right = WheelDuties(duty, duty, -duty, -duty)
         mapping = {
             Direction.FORWARD: WheelDuties(forward, forward, forward, forward),
             Direction.BACKWARD: WheelDuties(backward, backward, backward, backward),
-            Direction.LEFT: WheelDuties(-duty, -duty, duty, duty),
-            Direction.RIGHT: WheelDuties(duty, duty, -duty, -duty),
+            Direction.LEFT: left,
+            Direction.RIGHT: right,
             Direction.STOP: WheelDuties(0, 0, 0, 0),
         }
         self.set_wheels(mapping[direction])

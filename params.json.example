@@ -3,5 +3,6 @@
     "Pcb_Version": 1,
     "Pi_Version": 1,
     "Swap_Forward_Back": true,
+    "Swap_Left_Right": true,
     "Invert_Drive": false
 }

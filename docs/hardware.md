@@ -70,6 +70,7 @@ Created during Freenove setup; this project reads the same file:
 | Pcb_Version | 1, 2 | Motor driver PCB |
 | Pi_Version | 1, 2 | Pi &lt; 5 vs Pi 5 |
 | Swap_Forward_Back | true/false | Swap forward/back buttons (default true) |
+| Swap_Left_Right | true/false | Swap left/right turn buttons (default true) |
 | Invert_Drive | true/false | Negate all wheel directions (advanced) |
 
 ## Chassis variants

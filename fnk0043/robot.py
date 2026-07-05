@@ -108,6 +108,7 @@ class FNK0043:
             "pan_angle": self.pan_servo.angle,
             "tilt_angle": self.tilt_servo.angle,
             "swap_forward_back": self.config.swap_forward_back,
+            "swap_left_right": self.config.swap_left_right,
             "invert_drive": self.config.invert_drive,
         }
 
