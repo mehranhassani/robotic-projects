@@ -52,6 +52,8 @@ chmod +x scripts/install-service.sh
 
 See [docs/setup.md](docs/setup.md) for service management commands.
 
+Camera head loose or misaligned? See [docs/camera-calibration.md](docs/camera-calibration.md).
+
 ## Project layout
 
 ```
