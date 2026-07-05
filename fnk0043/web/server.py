@@ -229,6 +229,9 @@ def _handle_ws_action(robot: FNK0043, msg: dict) -> None:
         robot.buzzer.on() if msg.get("on") else robot.buzzer.off()
 
 
+_FAST_ACTIONS = frozenset({"drive", "stop", "servo", "buzzer", "mode"})
+
+
 @app.websocket("/ws")
 async def websocket_control(websocket: WebSocket):
     await websocket.accept()
@@ -244,8 +247,12 @@ async def websocket_control(websocket: WebSocket):
                 continue
 
             await _run_robot(_handle_ws_action, msg)
-            robot = await _get_robot()
-            await websocket.send_json({"ok": True, **await asyncio.to_thread(robot.status)})
+            # Drive/servo must not wait for slow sensor reads between commands
+            if action in _FAST_ACTIONS:
+                await websocket.send_json({"ok": True})
+            else:
+                robot = await _get_robot()
+                await websocket.send_json({"ok": True, **await asyncio.to_thread(robot.status)})
 
     except WebSocketDisconnect:
         if _robot is not None:

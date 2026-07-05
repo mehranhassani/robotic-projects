@@ -4,7 +4,14 @@
   let speed = 0.6;
   let activeDir = null;
   let reconnectTimer;
-  let servoTimer;
+  let drivePulseTimer = null;
+  let servoDebounce = null;
+  let lastPanAngle = null;
+  let lastTiltAngle = null;
+
+  const DRIVE_PULSE_MS = 120;
+  const SERVO_DEBOUNCE_MS = 80;
+  const STATUS_INTERVAL_MS = 2500;
 
   const $ = (id) => document.getElementById(id);
 
@@ -15,13 +22,14 @@
       $("conn-status").textContent = "Online";
       $("conn-status").className = "badge online";
       send({ action: "status" });
-      setServo("0", parseInt($("servo-pan").value, 10), false);
-      setServo("1", parseInt($("servo-tilt").value, 10), false);
+      setServo("0", parseInt($("servo-pan").value, 10), true);
+      setServo("1", parseInt($("servo-tilt").value, 10), true);
     };
 
     ws.onclose = () => {
       $("conn-status").textContent = "Offline";
       $("conn-status").className = "badge offline";
+      stopDrivePulse();
       clearTimeout(reconnectTimer);
       reconnectTimer = setTimeout(connect, 2000);
     };
@@ -38,31 +46,31 @@
     }
   }
 
-  async function setServo(channel, angle, useRestFallback = true) {
+  function setServo(channel, angle, immediate = false) {
     angle = Math.max(30, Math.min(150, angle));
     const isPan = channel === "0";
+    if (isPan && lastPanAngle === angle && !immediate) return;
+    if (!isPan && lastTiltAngle === angle && !immediate) return;
+
     const slider = isPan ? $("servo-pan") : $("servo-tilt");
     const label = isPan ? $("pan-angle") : $("tilt-angle");
     slider.value = String(angle);
     label.textContent = `${angle} deg`;
 
-    send({ action: "mode", mode: "manual" });
-    send({ action: "servo", channel, angle });
+    if (isPan) lastPanAngle = angle;
+    else lastTiltAngle = angle;
 
-    if (useRestFallback) {
-      clearTimeout(servoTimer);
-      servoTimer = setTimeout(async () => {
-        try {
-          await fetch("/api/servo", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ channel, angle }),
-          });
-        } catch (_) {
-          /* ws path is primary */
-        }
-      }, 80);
+    const dispatch = () => {
+      send({ action: "servo", channel, angle });
+    };
+
+    if (immediate) {
+      dispatch();
+      return;
     }
+
+    clearTimeout(servoDebounce);
+    servoDebounce = setTimeout(dispatch, SERVO_DEBOUNCE_MS);
   }
 
   function updateUI(data) {
@@ -86,7 +94,7 @@
     }
   }
 
-  function drive(direction) {
+  function sendDrive(direction) {
     if (direction === "stop") {
       send({ action: "stop" });
       return;
@@ -94,40 +102,67 @@
     send({ action: "drive", direction, speed });
   }
 
+  function stopDrivePulse() {
+    if (drivePulseTimer) {
+      clearInterval(drivePulseTimer);
+      drivePulseTimer = null;
+    }
+  }
+
+  function startDrivePulse(direction) {
+    stopDrivePulse();
+    sendDrive(direction);
+    drivePulseTimer = setInterval(() => sendDrive(direction), DRIVE_PULSE_MS);
+  }
+
   document.querySelectorAll(".dpad-btn").forEach((btn) => {
     const dir = btn.dataset.dir;
 
-    const start = (e) => {
+    btn.addEventListener("pointerdown", (e) => {
       e.preventDefault();
+      btn.setPointerCapture(e.pointerId);
       btn.classList.add("active");
       activeDir = dir;
-      drive(dir);
-    };
+      if (dir === "stop") {
+        stopDrivePulse();
+        sendDrive("stop");
+      } else {
+        startDrivePulse(dir);
+      }
+    });
 
-    const end = () => {
+    btn.addEventListener("pointerup", (e) => {
+      e.preventDefault();
       btn.classList.remove("active");
       if (activeDir === dir && dir !== "stop") {
-        send({ action: "stop" });
+        stopDrivePulse();
+        sendDrive("stop");
       }
       activeDir = null;
-    };
+    });
 
-    btn.addEventListener("mousedown", start);
-    btn.addEventListener("mouseup", end);
-    btn.addEventListener("mouseleave", end);
-    btn.addEventListener("touchstart", start, { passive: false });
-    btn.addEventListener("touchend", end);
-    btn.addEventListener("touchcancel", end);
+    btn.addEventListener("pointercancel", () => {
+      btn.classList.remove("active");
+      stopDrivePulse();
+      if (activeDir && activeDir !== "stop") {
+        sendDrive("stop");
+      }
+      activeDir = null;
+    });
   });
 
   $("speed").addEventListener("input", (e) => {
     speed = parseFloat(e.target.value);
+    if (activeDir && activeDir !== "stop") {
+      sendDrive(activeDir);
+    }
   });
 
   document.querySelectorAll(".mode-buttons button").forEach((btn) => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".mode-buttons button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
+      stopDrivePulse();
       send({ action: "mode", mode: btn.dataset.mode });
     });
   });
@@ -144,17 +179,11 @@
     });
   });
 
-  const onPanInput = (e) => setServo("0", parseInt(e.target.value, 10));
-  $("servo-pan").addEventListener("input", onPanInput);
-  $("servo-pan").addEventListener("change", onPanInput);
-
-  const onTiltInput = (e) => setServo("1", parseInt(e.target.value, 10));
-  $("servo-tilt").addEventListener("input", onTiltInput);
-  $("servo-tilt").addEventListener("change", onTiltInput);
+  $("servo-pan").addEventListener("input", (e) => setServo("0", parseInt(e.target.value, 10)));
+  $("servo-tilt").addEventListener("input", (e) => setServo("1", parseInt(e.target.value, 10)));
 
   $("camera-reload").addEventListener("click", () => {
-    const img = $("camera");
-    img.src = `/stream?ts=${Date.now()}`;
+    $("camera").src = `/stream?ts=${Date.now()}`;
   });
 
   let buzzerOn = false;
@@ -170,5 +199,5 @@
     if (ws && ws.readyState === WebSocket.OPEN) {
       send({ action: "status" });
     }
-  }, 2000);
+  }, STATUS_INTERVAL_MS);
 })();

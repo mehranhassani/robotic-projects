@@ -175,7 +175,7 @@ main {
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  touch-action: manipulation;
+  touch-action: none;
   user-select: none;
 }
 
