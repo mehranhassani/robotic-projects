@@ -4,6 +4,7 @@
   let speed = 0.6;
   let activeDir = null;
   let reconnectTimer;
+  let servoTimer;
 
   const $ = (id) => document.getElementById(id);
 
@@ -14,6 +15,7 @@
       $("conn-status").textContent = "Online";
       $("conn-status").className = "badge online";
       send({ action: "status" });
+      setPan(parseInt($("servo").value, 10), false);
     };
 
     ws.onclose = () => {
@@ -35,6 +37,30 @@
     }
   }
 
+  async function setPan(angle, useRestFallback = true) {
+    angle = Math.max(30, Math.min(150, angle));
+    $("servo").value = String(angle);
+    $("pan-angle").textContent = `${angle}°`;
+
+    send({ action: "mode", mode: "manual" });
+    send({ action: "servo", channel: "0", angle });
+
+    if (useRestFallback) {
+      clearTimeout(servoTimer);
+      servoTimer = setTimeout(async () => {
+        try {
+          await fetch("/api/servo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ channel: "0", angle }),
+          });
+        } catch (_) {
+          /* ws path is primary */
+        }
+      }, 80);
+    }
+  }
+
   function updateUI(data) {
     if (data.battery_v != null) $("battery").textContent = `${data.battery_v} V`;
     if (data.mock) {
@@ -47,6 +73,9 @@
     if (data.line) {
       const l = data.line;
       $("line").textContent = `${l.left} / ${l.center} / ${l.right}`;
+    }
+    if (data.pan_angle != null) {
+      $("pan-angle").textContent = `${data.pan_angle}°`;
     }
   }
 
@@ -96,8 +125,19 @@
     });
   });
 
-  $("servo").addEventListener("input", (e) => {
-    send({ action: "servo", channel: "0", angle: parseInt(e.target.value, 10) });
+  document.querySelectorAll(".pan-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setPan(parseInt(btn.dataset.pan, 10));
+    });
+  });
+
+  const onServoInput = (e) => setPan(parseInt(e.target.value, 10));
+  $("servo").addEventListener("input", onServoInput);
+  $("servo").addEventListener("change", onServoInput);
+
+  $("camera-reload").addEventListener("click", () => {
+    const img = $("camera");
+    img.src = `/stream?ts=${Date.now()}`;
   });
 
   let buzzerOn = false;

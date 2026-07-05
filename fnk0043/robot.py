@@ -85,6 +85,7 @@ class FNK0043:
             "distance_cm": snap.distance_cm,
             "light": {"left": snap.light_left_v, "right": snap.light_right_v},
             "line": {"left": snap.line_left, "center": snap.line_center, "right": snap.line_right},
+            "pan_angle": self.pan_servo.angle,
         }
 
     def close(self) -> None:

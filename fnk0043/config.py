@@ -40,6 +40,7 @@ class HardwareConfig:
     motor_pwm_freq: int = 50
     max_duty: int = 4095
     default_speed: float = 0.6
+    invert_drive: bool = False
 
     @property
     def adc_voltage_scale(self) -> float:
@@ -77,9 +78,16 @@ def hardware_from_params(
     chassis: ChassisType | None = None,
 ) -> HardwareConfig:
     params = load_params(params_path)
+    invert_env = os.environ.get("FNK0043_INVERT_DRIVE", "").lower()
+    invert_drive = params.get("Invert_Drive")
+    if invert_drive is None:
+        invert_drive = invert_env in ("1", "true", "yes")
+    else:
+        invert_drive = bool(invert_drive)
     return HardwareConfig(
         connect_version=params.get("Connect_Version", 2),
         pcb_version=params.get("Pcb_Version", 1),
         pi_version=params.get("Pi_Version", 1),
         chassis=chassis or ChassisType(os.environ.get("FNK0043_CHASSIS", "standard")),
+        invert_drive=invert_drive,
     )

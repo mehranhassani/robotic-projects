@@ -18,6 +18,10 @@
 
   <main>
     <section class="panel video-panel">
+      <div class="camera-toolbar">
+        <span>Live camera</span>
+        <button id="camera-reload" type="button">Reload feed</button>
+      </div>
       <img id="camera" src="/stream" alt="Camera feed" />
       <div class="sensor-grid">
         <div class="sensor"><label>Distance</label><span id="distance">—</span></div>
@@ -49,10 +53,21 @@
         <button data-mode="obstacle_avoid">Ultrasonic</button>
       </div>
 
+      <h2>Camera pan</h2>
+      <div class="pan-controls">
+        <button type="button" class="pan-btn" data-pan="30">◀ Left</button>
+        <button type="button" class="pan-btn" data-pan="90">Center</button>
+        <button type="button" class="pan-btn" data-pan="150">Right ▶</button>
+        <span id="pan-angle" class="pan-angle">90°</span>
+      </div>
+      <label class="pan-slider">
+        Fine adjust
+        <input type="range" id="servo" min="30" max="150" step="1" value="90" />
+      </label>
+
       <h2>Extras</h2>
       <div class="extras">
-        <label>Servo pan <input type="range" id="servo" min="30" max="150" value="90" /></label>
-        <button id="buzzer" class="toggle">Buzzer</button>
+        <button id="buzzer" class="toggle" type="button">Buzzer</button>
       </div>
     </section>
   </main>

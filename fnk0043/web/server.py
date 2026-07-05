@@ -135,8 +135,13 @@ async def set_mode(cmd: ModeCommand):
 
 @app.post("/api/servo")
 async def set_servo(cmd: ServoCommand):
-    _require_robot().servos.set_angle(cmd.channel, cmd.angle)
-    return {"ok": True}
+    robot = _require_robot()
+    robot.set_drive_mode(DriveMode.MANUAL)
+    if cmd.channel == "0":
+        robot.pan_servo.set_angle(cmd.angle)
+    else:
+        robot.servos.set_angle(cmd.channel, cmd.angle)
+    return {"ok": True, "angle": cmd.angle}
 
 
 @app.post("/api/buzzer")
@@ -198,7 +203,13 @@ async def websocket_control(websocket: WebSocket):
                 robot.set_drive_mode(DriveMode(msg["mode"]))
 
             elif action == "servo":
-                robot.servos.set_angle(msg.get("channel", "0"), msg.get("angle", 90))
+                robot.set_drive_mode(DriveMode.MANUAL)
+                channel = msg.get("channel", "0")
+                angle = int(msg.get("angle", 90))
+                if channel == "0":
+                    robot.pan_servo.set_angle(angle)
+                else:
+                    robot.servos.set_angle(channel, angle)
 
             elif action == "buzzer":
                 robot.buzzer.on() if msg.get("on") else robot.buzzer.off()

@@ -70,6 +70,63 @@ main {
   object-fit: cover;
 }
 
+.camera-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.camera-toolbar button {
+  border: 1px solid #334155;
+  background: transparent;
+  color: var(--text);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.pan-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.pan-btn {
+  border: 1px solid #334155;
+  background: transparent;
+  color: var(--text);
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  touch-action: manipulation;
+}
+
+.pan-btn:active { background: var(--accent); }
+
+.pan-angle {
+  margin-left: auto;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.pan-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 1.25rem;
+}
+
+.pan-slider input { flex: 1; }
+
 .sensor-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

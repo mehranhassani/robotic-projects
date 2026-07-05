@@ -58,6 +58,8 @@ class DriveSystem:
 
     def set_wheels(self, duties: WheelDuties) -> None:
         fl, bl, fr, br = self._clamp_duty(*duties.as_tuple())
+        if self._config.invert_drive:
+            fl, bl, fr, br = -fl, -bl, -fr, -br
         self._set_wheel(0, 1, fl)
         self._set_wheel(3, 2, bl)
         self._set_wheel(6, 7, fr)
